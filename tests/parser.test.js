@@ -32,6 +32,19 @@ describe("parseTask — svenska fraser", () => {
     ["betala hyran 25/8 varje månad", { title: "Betala hyran", due: "2026-08-25", time: null, priority: 0, repeat: { unit: "month", interval: 1, day: 25 } }],
     ["gå igenom inkorgen varje vecka", { title: "Gå igenom inkorgen", due: "2026-08-09", time: null, priority: 0, repeat: { unit: "week", interval: 1, dow: 0 } }],
     ["sophämtning varje måndag kl 7 !viktigt", { title: "Sophämtning", due: "2026-08-10", time: "07:00", priority: 2, repeat: { unit: "week", interval: 1, dow: 1 } }],
+    // Bar timme efter datumord (lagat: fungerade tidigare bara efter veckodag)
+    ["möte vargstigen 12 imorgon 16", { title: "Möte vargstigen 12", due: "2026-08-10", time: "16:00", priority: 0, repeat: null }],
+    ["möte idag 9", { title: "Möte", due: "2026-08-09", time: "09:00", priority: 0, repeat: null }],
+    ["möte i övermorgon 8", { title: "Möte", due: "2026-08-11", time: "08:00", priority: 0, repeat: null }],
+    ["möte 12/8 16", { title: "Möte", due: "2026-08-12", time: "16:00", priority: 0, repeat: null }],
+    ["möte 12 aug 16", { title: "Möte", due: "2026-08-12", time: "16:00", priority: 0, repeat: null }],
+    ["möte 2026-08-12 16", { title: "Möte", due: "2026-08-12", time: "16:00", priority: 0, repeat: null }],
+    ["möte nästa vecka 9", { title: "Möte", due: "2026-08-10", time: "09:00", priority: 0, repeat: null }],
+    // Siffra mitt i texten ska INTE bli klockslag
+    ["handla imorgon 3 kilo potatis", { title: "Handla 3 kilo potatis", due: "2026-08-10", time: null, priority: 0, repeat: null }],
+    ["möte vargstigen 12", { title: "Möte vargstigen 12", due: null, time: null, priority: 0, repeat: null }],
+    // Ordning spelar ingen roll
+    ["möte kl 16 på fredag", { title: "Möte", due: "2026-08-14", time: "16:00", priority: 0, repeat: null }],
   ];
   for (const [input, expected] of cases) {
     it(`"${input}"`, () => {

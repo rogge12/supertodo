@@ -22,23 +22,42 @@ export default function TaskItem({ task, focus, hideDate, nudge, editing, onTogg
     }
   }, [editing]); // eslint-disable-line
 
+  const saveEdit = () => {
+    const p = parseTask(val);
+    if (p.title) onSaveEdit(task.id, p);
+    else onCancelEdit();
+  };
+
   if (editing) {
+    const preview = val.trim() ? parseTask(val.trim()) : null;
     return (
-      <li className="task">
+      <li className="task editing">
         <div className="task-body">
           <input
             ref={inputRef}
             className="edit-input"
+            enterKeyHint="done"
             value={val}
             onChange={(e) => setVal(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                const p = parseTask(val);
-                if (p.title) onSaveEdit(task.id, p);
-                else onCancelEdit();
-              } else if (e.key === "Escape") onCancelEdit();
+              if (e.key === "Enter") saveEdit();
+              else if (e.key === "Escape") onCancelEdit();
             }}
           />
+          {preview && (preview.due || preview.time || preview.priority || preview.repeat) && (
+            <div className="edit-preview">
+              {preview.repeat && <span className="chip">🔁 {fmtRepeat(preview.repeat)}</span>}
+              {preview.due && <span className="chip">📅 {fmtDate(preview.due)}</span>}
+              {preview.time && <span className="chip">⏰ {preview.time}</span>}
+              {preview.priority === 2 && <span className="chip prio2">Viktigt</span>}
+              {preview.priority === 1 && <span className="chip prio1">Prioriterad</span>}
+            </div>
+          )}
+          {/* Synliga knappar så att man kan ta sig ur utan tangentbord */}
+          <div className="edit-actions">
+            <button type="button" className="edit-cancel" onClick={onCancelEdit}>Avbryt</button>
+            <button type="button" className="edit-save" onClick={saveEdit}>Spara</button>
+          </div>
           <div className="edit-hint">Enter för att spara · Esc för att avbryta</div>
         </div>
       </li>

@@ -38,12 +38,14 @@ function findWeekday(name) {
   return null;
 }
 
-// Bar timme direkt efter matchad text: "fre 10" / "varje fredag 10"
+// Bar timme direkt efter matchad datumtext: "fre 10", "imorgon 16", "varje fredag 10".
+// Kräver att siffran avslutar strängen — annars skulle "imorgon 3 kilo potatis"
+// tolka 3 som klockslag.
 function grabBareHour(s, matchIndex, matchLen) {
   const rest = s.slice(matchIndex + matchLen);
-  const hm = rest.match(/^\s(\d{1,2})(?=$|[\s,.;!?])/);
+  const hm = rest.match(/^\s(\d{1,2})\s*$/);
   if (hm && +hm[1] <= 23) {
-    return { time: pad2(+hm[1]) + ":00", s: s.slice(0, matchIndex + matchLen) + rest.replace(hm[0], "") };
+    return { time: pad2(+hm[1]) + ":00", s: s.slice(0, matchIndex + matchLen) + rest.replace(hm[0], " ") };
   }
   return null;
 }
@@ -107,7 +109,13 @@ export function parseTask(text, now) {
   ];
   for (const r of rel) {
     m = s.match(new RegExp(B1 + "(" + r.re + ")" + B2, "i"));
-    if (m) { due = isoDate(addDays(now, r.days)); s = s.replace(m[0], m[1]); break; }
+    if (m) {
+      due = isoDate(addDays(now, r.days));
+      const bh = grabBareHour(s, m.index, m[0].length);
+      if (!time && bh) { time = bh.time; s = bh.s; }
+      s = s.replace(m[0], m[1]);
+      break;
+    }
   }
 
   // "nästa vecka" → nästa måndag
@@ -116,6 +124,8 @@ export function parseTask(text, now) {
     if (m) {
       const nm = nextDow(addDays(now, 1), 1);
       due = isoDate(nm);
+      const bh = grabBareHour(s, m.index, m[0].length);
+      if (!time && bh) { time = bh.time; s = bh.s; }
       s = s.replace(m[0], m[1]);
     }
   }
@@ -140,7 +150,12 @@ export function parseTask(text, now) {
   // ISO-datum 2026-08-14
   if (!due) {
     m = s.match(new RegExp(B1 + "(\\d{4})-(\\d{2})-(\\d{2})" + B2));
-    if (m) { due = m[2] + "-" + m[3] + "-" + m[4]; s = s.replace(m[0], m[1]); }
+    if (m) {
+      due = m[2] + "-" + m[3] + "-" + m[4];
+      const bh = grabBareHour(s, m.index, m[0].length);
+      if (!time && bh) { time = bh.time; s = bh.s; }
+      s = s.replace(m[0], m[1]);
+    }
   }
   // "14/8"
   if (!due) {
@@ -148,7 +163,10 @@ export function parseTask(text, now) {
     if (m && +m[2] >= 1 && +m[2] <= 31 && +m[3] >= 1 && +m[3] <= 12) {
       let d = new Date(now.getFullYear(), +m[3] - 1, +m[2]);
       if (d < now && isoDate(d) !== isoDate(now)) d.setFullYear(d.getFullYear() + 1);
-      due = isoDate(d); s = s.replace(m[0], m[1]);
+      due = isoDate(d);
+      const bh = grabBareHour(s, m.index, m[0].length);
+      if (!time && bh) { time = bh.time; s = bh.s; }
+      s = s.replace(m[0], m[1]);
     }
   }
   // "14 aug", "3 december", "den 14 augusti"
@@ -157,7 +175,10 @@ export function parseTask(text, now) {
     if (m && +m[2] >= 1 && +m[2] <= 31) {
       let d = new Date(now.getFullYear(), MONTHS[m[3].toLowerCase()], +m[2]);
       if (d < now && isoDate(d) !== isoDate(now)) d.setFullYear(d.getFullYear() + 1);
-      due = isoDate(d); s = s.replace(m[0], m[1]);
+      due = isoDate(d);
+      const bh = grabBareHour(s, m.index, m[0].length);
+      if (!time && bh) { time = bh.time; s = bh.s; }
+      s = s.replace(m[0], m[1]);
     }
   }
 
