@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseTask, nextOccurrence, taskScore } from "../src/lib/parser.js";
+import { composeText, dateToken } from "../src/lib/compose.js";
 
 // Fixerad "nu": söndag 9 aug 2026, kl 12:00
 const NOW = new Date(2026, 7, 9, 12, 0, 0);
@@ -51,6 +52,58 @@ describe("parseTask — svenska fraser", () => {
       expect(p(input)).toEqual(expected);
     });
   }
+});
+
+describe("upprepning + utskrivet datum", () => {
+  it("datumet hamnar inte i titeln", () => {
+    expect(p("vattna blommorna varje söndag 16/8")).toEqual({
+      title: "Vattna blommorna", due: "2026-08-16", time: null, priority: 0,
+      repeat: { unit: "week", interval: 1, dow: 0 },
+    });
+  });
+  it("startdatum på fel veckodag flyttas fram till rätt dag", () => {
+    // 17/8 2026 är en måndag — "varje söndag" ska landa på 23/8
+    expect(p("möte varje söndag 17/8").due).toBe("2026-08-23");
+  });
+  it("månadsupprepning behåller sitt datum", () => {
+    expect(p("betala hyran 25/8 varje månad")).toEqual({
+      title: "Betala hyran", due: "2026-08-25", time: null, priority: 0,
+      repeat: { unit: "month", interval: 1, day: 25 },
+    });
+  });
+});
+
+describe("composeText — väljaren skriver tillbaka i texten", () => {
+  const round = (text, due, time) => {
+    const out = composeText(text, due, time);
+    return { text: out, parsed: parseTask(out, new Date(NOW)) };
+  };
+  it("lägger till datum och tid", () => {
+    const r = round("möte Vargstigen", "2026-08-20", "16:30");
+    expect(r.text).toBe("Möte Vargstigen 20/8 kl 16:30");
+    expect(r.parsed.due).toBe("2026-08-20");
+    expect(r.parsed.time).toBe("16:30");
+  });
+  it("behåller prioritet och upprepning", () => {
+    const r = round("vattna blommorna varje söndag !!", "2026-08-16", "07:00");
+    expect(r.parsed.repeat).toEqual({ unit: "week", interval: 1, dow: 0 });
+    expect(r.parsed.priority).toBe(2);
+    expect(r.parsed.title).toBe("Vattna blommorna");
+  });
+  it("rensar bort datum och tid utan att lämna rester", () => {
+    const r = round("Vattna blommorna varje söndag 16/8 kl 07:00 !!", null, null);
+    expect(r.text).toBe("Vattna blommorna varje söndag !!");
+    expect(r.parsed.time).toBe(null);
+    expect(r.parsed.title).toBe("Vattna blommorna");
+  });
+  it("byter ut ett tidigare valt datum i stället för att lägga till ett till", () => {
+    const first = composeText("möte", "2026-08-20", "16:30");
+    const second = composeText(first, "2026-09-02", "09:00");
+    expect(second).toBe("Möte 2/9 kl 09:00");
+  });
+  it("skriver hela datumet när året inte är innevarande", () => {
+    expect(dateToken("2027-03-04")).toBe("2027-03-04");
+  });
 });
 
 describe("nextOccurrence", () => {

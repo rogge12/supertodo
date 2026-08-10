@@ -1,3 +1,5 @@
+import { Bulb } from "./Icons.jsx";
+
 /* Hjälpruta: visar hur man skriver datum, tid, prioritet och upprepning.
    Varje exempel går att trycka på — då fylls det i inmatningsrutan. */
 
@@ -53,7 +55,7 @@ export default function HelpSheet({ onPick, onClose }) {
   return (
     <div className="overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="sheet">
-        <h2>💡 Så skriver du</h2>
+        <h2><Bulb size={19} /> Så skriver du</h2>
         <div className="sub">
           Skriv allt på en rad — appen plockar ut datum, tid och prioritet, resten blir titeln.
           Tryck på ett exempel för att prova det.

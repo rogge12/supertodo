@@ -1,3 +1,4 @@
+import { Sun } from "./Icons.jsx";
 import { useState } from "react";
 import { fmtDate, ageDaysOf, todayIso } from "../lib/format.js";
 
@@ -31,7 +32,7 @@ export default function PlanSheet({ candidates, onDone, onSkip, onClose }) {
   return (
     <div className="overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="sheet">
-        <h2>☀️ Planera min dag</h2>
+        <h2><Sun size={19} /> Planera min dag</h2>
         <div className="sub">Välj dagens 3–5 viktigaste. Resten ligger kvar och väntar — det är poängen.</div>
         <div className="plan-list">
           {candidates.map((t) => (

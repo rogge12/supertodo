@@ -1,3 +1,4 @@
+import { Gear } from "./Icons.jsx";
 import { useRef, useState } from "react";
 import { todayIso } from "../lib/format.js";
 
@@ -43,7 +44,7 @@ export default function SettingsSheet({ tasks, meta, onImport, onClose, onToast 
   return (
     <div className="overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="sheet">
-        <h2>⚙ Inställningar</h2>
+        <h2><Gear size={19} /> Inställningar</h2>
         <div className="sub" />
         <div className="set-row">
           <div className="lbl">

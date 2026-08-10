@@ -83,7 +83,7 @@ export function parseTask(text, now) {
     const bh = grabBareHour(s, m.index, m[0].length);
     if (!time && bh) { time = bh.time; s = bh.s; }
     s = s.replace(m[0], m[1]);
-    due = isoDate(nextDow(now, dow));
+    // due sätts längre ner, efter att ett eventuellt utskrivet datum lästs in
   }
   // "varje dag" / "varannan dag"
   if (!repeat) {
@@ -194,6 +194,8 @@ export function parseTask(text, now) {
     if (repeat.unit === "week") {
       if (repeat.dow == null) repeat.dow = due ? dowOf(due) : now.getDay();
       if (!due) due = isoDate(nextDow(now, repeat.dow));
+      // "varje söndag 17/8" där 17/8 är en måndag: flytta fram till rätt veckodag
+      else if (dowOf(due) !== repeat.dow) due = isoDate(nextDow(new Date(due + "T00:00:00"), repeat.dow));
     } else if (repeat.unit === "month") {
       repeat.day = due ? +due.slice(8, 10) : now.getDate();
       if (!due) due = isoDate(now);

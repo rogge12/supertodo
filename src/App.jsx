@@ -5,6 +5,7 @@ import Capture from "./components/Capture.jsx";
 import TaskItem from "./components/TaskItem.jsx";
 import PlanSheet from "./components/PlanSheet.jsx";
 import SettingsSheet from "./components/SettingsSheet.jsx";
+import { Gear, Sun, Inbox, CalendarBig, PartyCheck } from "./components/Icons.jsx";
 
 const STORE_KEY = "supertodo.tasks.v1";
 const META_KEY = "supertodo.meta.v1";
@@ -238,7 +239,7 @@ export default function App() {
         <h1 id="view-title">{view === "today" ? "Idag" : view === "inbox" ? "Inkorg" : "Kommande"}</h1>
         <div className="hright">
           <span className="date">{DAY_NAMES[now.getDay()] + " " + now.getDate() + " " + MONTH_NAMES[now.getMonth()]}</span>
-          <button className="gear" id="gear" title="Inställningar" onClick={() => setSettingsOpen(true)}>⚙</button>
+          <button className="gear" id="gear" title="Inställningar" onClick={() => setSettingsOpen(true)}><Gear /></button>
         </div>
       </header>
 
@@ -268,14 +269,14 @@ export default function App() {
             )}
             {meta.lastPlanned === today && planCandidates.length > 0 && (
               <div className="replan">
-                <button onClick={() => setPlanOpen(true)}>☀️ Planera om dagen</button>
+                <button onClick={() => setPlanOpen(true)}><Sun /> Planera om dagen</button>
               </div>
             )}
             {todayAll.length === 0 && doneToday.length === 0 && (
-              <div className="empty"><span className="big">☀️</span>Inget planerat idag.<br />Skriv något där uppe för att komma igång.</div>
+              <div className="empty"><span className="big"><Sun size={30} /></span>Inget planerat idag.<br />Skriv något där uppe för att komma igång.</div>
             )}
             {todayAll.length === 0 && doneToday.length > 0 && (
-              <div className="empty"><span className="big">🎉</span>Allt klart för idag — snyggt jobbat!</div>
+              <div className="empty"><span className="big"><PartyCheck /></span>Allt klart för idag — snyggt jobbat!</div>
             )}
             {focusTasks.length > 0 ? (
               <>
@@ -302,7 +303,7 @@ export default function App() {
 
         {view === "inbox" &&
           (inboxTasks.length === 0 ? (
-            <div className="empty"><span className="big">📥</span>Inkorgen är tom.<br />Allt du skriver utan datum hamnar här.</div>
+            <div className="empty"><span className="big"><Inbox /></span>Inkorgen är tom.<br />Allt du skriver utan datum hamnar här.</div>
           ) : (
             <>
               {freshInbox.length > 0 && renderItems(freshInbox)}
@@ -317,7 +318,7 @@ export default function App() {
 
         {view === "upcoming" &&
           (upcoming.length === 0 ? (
-            <div className="empty"><span className="big">🗓️</span>Inget inplanerat framöver.</div>
+            <div className="empty"><span className="big"><CalendarBig /></span>Inget inplanerat framöver.</div>
           ) : (
             upcomingGroups.map((g) => (
               <div key={g.date}>

@@ -1,11 +1,25 @@
 import { useEffect, useRef, useState } from "react";
-import { parseTask } from "../lib/parser.js";
+import { parseTask, addDays, isoDate } from "../lib/parser.js";
 import { fmtDate, fmtRepeat, ageDaysOf, todayIso } from "../lib/format.js";
-import { addDays, isoDate } from "../lib/parser.js";
+import { Chevron, Trash, Calendar, Clock, Repeat, Flag } from "./Icons.jsx";
+import DateTimeSheet from "./DateTimeSheet.jsx";
+import { composeText, initialFromText } from "../lib/compose.js";
+
+const OPEN_AT = -92;   // hur långt raden vilar när "Ta bort" är framme
+const TRIGGER = -46;   // hur långt man måste svepa för att den ska fastna
+const MAX = -112;
 
 export default function TaskItem({ task, focus, hideDate, nudge, editing, onToggle, onEdit, onSaveEdit, onCancelEdit, onRemove, onSetDue }) {
   const inputRef = useRef(null);
   const [val, setVal] = useState("");
+  const [offset, setOffsetState] = useState(0);
+  const [swiping, setSwiping] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const drag = useRef({ x: 0, y: 0, base: 0, axis: null, moved: false });
+  // Positionen speglas i en ref: flera touchmove kan hinna före en omritning,
+  // och då är state-värdet i touchend-stängningen inaktuellt.
+  const offsetRef = useRef(0);
+  const setOffset = (v) => { offsetRef.current = v; setOffsetState(v); };
 
   useEffect(() => {
     if (editing) {
@@ -15,6 +29,7 @@ export default function TaskItem({ task, focus, hideDate, nudge, editing, onTogg
         (task.time ? " " + task.time : "") +
         (task.priority === 2 ? " !!" : task.priority === 1 ? " !" : "");
       setVal(v);
+      setOffset(0);
       setTimeout(() => {
         inputRef.current?.focus();
         inputRef.current?.setSelectionRange(v.length, v.length);
@@ -28,11 +43,46 @@ export default function TaskItem({ task, focus, hideDate, nudge, editing, onTogg
     else onCancelEdit();
   };
 
+  /* ---------- Svep ---------- */
+  const onTouchStart = (e) => {
+    const t = e.touches[0];
+    drag.current = { x: t.clientX, y: t.clientY, base: offsetRef.current, axis: null, moved: false };
+  };
+  const onTouchMove = (e) => {
+    const d = drag.current;
+    const t = e.touches[0];
+    const dx = t.clientX - d.x;
+    const dy = t.clientY - d.y;
+    if (d.axis === null) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      d.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+      if (d.axis === "x") setSwiping(true);
+    }
+    if (d.axis !== "x") return;
+    d.moved = true;
+    const next = Math.max(MAX, Math.min(0, d.base + dx));
+    setOffset(next);
+  };
+  const onTouchEnd = () => {
+    const d = drag.current;
+    setSwiping(false);
+    if (d.axis === "x") setOffset(offsetRef.current < TRIGGER ? OPEN_AT : 0);
+    d.axis = null;
+  };
+
+  const onRowClick = () => {
+    if (drag.current.moved) { drag.current.moved = false; return; } // det var ett svep
+    if (offsetRef.current !== 0) { setOffset(0); return; }          // stäng först
+    onEdit(task.id);
+  };
+
+  /* ---------- Redigeringsläge ---------- */
   if (editing) {
-    const preview = val.trim() ? parseTask(val.trim()) : null;
+    const p = val.trim() ? parseTask(val.trim()) : null;
+    const shows = p && (p.due || p.time || p.priority || p.repeat);
     return (
       <li className="task editing">
-        <div className="task-body">
+        <div className="task-slide">
           <input
             ref={inputRef}
             className="edit-input"
@@ -44,62 +94,93 @@ export default function TaskItem({ task, focus, hideDate, nudge, editing, onTogg
               else if (e.key === "Escape") onCancelEdit();
             }}
           />
-          {preview && (preview.due || preview.time || preview.priority || preview.repeat) && (
+          {shows && (
             <div className="edit-preview">
-              {preview.repeat && <span className="chip">🔁 {fmtRepeat(preview.repeat)}</span>}
-              {preview.due && <span className="chip">📅 {fmtDate(preview.due)}</span>}
-              {preview.time && <span className="chip">⏰ {preview.time}</span>}
-              {preview.priority === 2 && <span className="chip prio2">Viktigt</span>}
-              {preview.priority === 1 && <span className="chip prio1">Prioriterad</span>}
+              {p.repeat && <span className="chip"><Repeat /> {fmtRepeat(p.repeat)}</span>}
+              {p.due && <span className="chip"><Calendar /> {fmtDate(p.due)}</span>}
+              {p.time && <span className="chip"><Clock /> {p.time}</span>}
+              {p.priority === 2 && <span className="chip prio2"><Flag /> Viktigt</span>}
+              {p.priority === 1 && <span className="chip prio1"><Flag /> Prioriterad</span>}
             </div>
           )}
-          {/* Synliga knappar så att man kan ta sig ur utan tangentbord */}
           <div className="edit-actions">
+            <button type="button" className="edit-delete" onClick={() => onRemove(task.id)}>Ta bort</button>
+            <button type="button" className="edit-cal" title="Välj datum och tid" aria-label="Välj datum och tid"
+                    onClick={() => setPickerOpen(true)}><Calendar size={18} /></button>
             <button type="button" className="edit-cancel" onClick={onCancelEdit}>Avbryt</button>
             <button type="button" className="edit-save" onClick={saveEdit}>Spara</button>
           </div>
-          <div className="edit-hint">Enter för att spara · Esc för att avbryta</div>
+          <div className="edit-hint">Enter sparar · Esc avbryter</div>
         </div>
+        {pickerOpen && (() => {
+          const init = initialFromText(val);
+          return (
+            <DateTimeSheet
+              initialDue={init.hadDate ? init.due : null}
+              initialTime={init.time}
+              onApply={(due, time) => { setVal(composeText(val, due, time)); setPickerOpen(false); }}
+              onClose={() => setPickerOpen(false)}
+            />
+          );
+        })()}
       </li>
     );
   }
 
+  /* ---------- Vanlig rad ---------- */
   const overdue = !task.done && task.due && task.due < todayIso();
   const days = ageDaysOf(task);
+  // Ett "idag" på varje rad i Idag-vyn säger inget — visa datumet bara när det tillför något
+  const showDate = task.due && !hideDate && (overdue || task.due !== todayIso());
+  const hasMeta = showDate || task.time || task.repeat || (task.priority === 2 && !task.done);
 
   return (
-    <li className={"task" + (task.done ? " done" : "") + (focus ? " focus" : "")}>
-      <button
-        className={"check" + (task.priority ? " prio" + task.priority : "")}
-        title={task.done ? "Markera som ej klar" : "Klar!"}
-        onClick={() => onToggle(task)}
-      />
-      <div className="task-body">
-        <div className="task-title">{task.title}</div>
-        {(task.due && !hideDate) || task.time || task.repeat || (task.priority === 2 && !task.done) ? (
-          <div className="task-meta">
-            {task.due && !hideDate && (
-              overdue ? <span className="late">Försenad · {fmtDate(task.due)}</span> : <span>{fmtDate(task.due)}</span>
-            )}
-            {task.time && <span>kl {task.time}</span>}
-            {task.repeat && <span>🔁 {fmtRepeat(task.repeat)}</span>}
-            {task.priority === 2 && !task.done && <span style={{ color: "var(--danger)", fontWeight: 600 }}>Viktigt</span>}
-          </div>
-        ) : null}
-        {nudge && !task.done && (
-          <div className="nudge">
-            <span className="q">
-              Har legat {days >= 21 ? Math.floor(days / 7) + " veckor" : days + " dagar"} — göra, boka in eller släppa?
-            </span>
-            <button onClick={() => onSetDue(task.id, todayIso())}>Idag</button>
-            <button onClick={() => onSetDue(task.id, isoDate(addDays(new Date(), 1)))}>Imorgon</button>
-            <button onClick={() => onRemove(task.id)}>Släpp</button>
-          </div>
-        )}
+    <li className={"task" + (task.done ? " done" : "") + (focus ? " focus" : "") + (swiping ? " swiping" : "")}>
+      <div className="task-open" aria-hidden={offset === 0}>
+        <button type="button" tabIndex={offset === 0 ? -1 : 0} onClick={() => onRemove(task.id)}>
+          <Trash />
+          Ta bort
+        </button>
       </div>
-      <div className="task-actions">
-        <button title="Redigera" onClick={() => onEdit(task.id)}>✎</button>
-        <button title="Ta bort" onClick={() => onRemove(task.id)}>✕</button>
+      <div
+        className="task-slide"
+        style={{ transform: `translateX(${offset}px)` }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onClick={onRowClick}
+      >
+        <button
+          className={"check" + (task.priority ? " prio" + task.priority : "")}
+          title={task.done ? "Markera som ej klar" : "Klar!"}
+          onClick={(e) => { e.stopPropagation(); onToggle(task); }}
+        />
+        <div className="task-body">
+          <div className="task-title">{task.title}</div>
+          {hasMeta && (
+            <div className="task-meta">
+              {showDate && (
+                overdue
+                  ? <span className="late"><Calendar /> Försenad · {fmtDate(task.due)}</span>
+                  : <span><Calendar /> {fmtDate(task.due)}</span>
+              )}
+              {task.time && <span><Clock /> {task.time}</span>}
+              {task.repeat && <span><Repeat /> {fmtRepeat(task.repeat)}</span>}
+              {task.priority === 2 && !task.done && <span className="imp"><Flag /> Viktigt</span>}
+            </div>
+          )}
+          {nudge && !task.done && (
+            <div className="nudge" onClick={(e) => e.stopPropagation()}>
+              <span className="q">
+                Har legat {days >= 21 ? Math.floor(days / 7) + " veckor" : days + " dagar"} — göra, boka in eller släppa?
+              </span>
+              <button onClick={() => onSetDue(task.id, todayIso())}>Idag</button>
+              <button onClick={() => onSetDue(task.id, isoDate(addDays(new Date(), 1)))}>Imorgon</button>
+              <button onClick={() => onRemove(task.id)}>Släpp</button>
+            </div>
+          )}
+        </div>
+        <span className="task-chev"><Chevron /></span>
       </div>
     </li>
   );
