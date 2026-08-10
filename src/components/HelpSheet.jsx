@@ -34,6 +34,13 @@ const SECTIONS = [
     ],
   },
   {
+    title: "Listor",
+    items: [
+      ["#vindskydd", "lägger uppgiften i listan Vindskydd"],
+      ["#nytt-namn", "skapar listan om den inte finns"],
+    ],
+  },
+  {
     title: "Upprepning",
     items: [
       ["varje dag", "varje dag (även: varannan dag)"],
@@ -49,6 +56,7 @@ const EXAMPLES = [
   "möte Vargstigen 12/8 kl 16 !viktigt",
   "vattna blommorna varje söndag",
   "betala hyran 25/8 varje månad",
+  "köp virke #vindskydd imorgon kl 8",
 ];
 
 export default function HelpSheet({ onPick, onClose }) {

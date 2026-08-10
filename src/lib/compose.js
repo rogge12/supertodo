@@ -17,6 +17,7 @@ export function composeText(rawText, due, time) {
   if (p.repeat) bits.push(fmtRepeat(p.repeat));
   if (due) bits.push(dateToken(due));
   if (time) bits.push("kl " + time);
+  if (p.list) bits.push("#" + p.list);
   if (p.priority === 2) bits.push("!!");
   else if (p.priority === 1) bits.push("!");
   return bits.filter(Boolean).join(" ").trim();

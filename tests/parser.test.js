@@ -8,6 +8,7 @@ const p = (text) => {
   const r = parseTask(text, new Date(NOW));
   return { title: r.title, due: r.due, time: r.time, priority: r.priority, repeat: r.repeat };
 };
+const full = (text) => parseTask(text, new Date(NOW));
 
 describe("parseTask — svenska fraser", () => {
   const cases = [
@@ -103,6 +104,36 @@ describe("composeText — väljaren skriver tillbaka i texten", () => {
   });
   it("skriver hela datumet när året inte är innevarande", () => {
     expect(dateToken("2027-03-04")).toBe("2027-03-04");
+  });
+});
+
+describe("listor med #namn", () => {
+  it("plockar ut listan och lämnar titeln ren", () => {
+    const r = full("köp virke #vindskydd imorgon kl 8");
+    expect(r.list).toBe("vindskydd");
+    expect(r.title).toBe("Köp virke");
+    expect(r.due).toBe("2026-08-10");
+    expect(r.time).toBe("08:00");
+  });
+  it("fungerar först i raden", () => {
+    expect(full("#vindskydd spika reglar").title).toBe("Spika reglar");
+    expect(full("#vindskydd spika reglar").list).toBe("vindskydd");
+  });
+  it("tillåter bindestreck i listnamnet", () => {
+    expect(full("spika #arbete-hemma 12/8").list).toBe("arbete-hemma");
+  });
+  it("ingen lista när # saknas", () => {
+    expect(full("vanlig uppgift").list).toBe(null);
+  });
+  it("composeText behåller listan", () => {
+    expect(composeText("köp virke #vindskydd", "2026-08-20", "08:00")).toBe("Köp virke 20/8 kl 08:00 #vindskydd");
+  });
+  it("lista + prioritet + upprepning samtidigt", () => {
+    const r = full("vattna #vindskydd varje söndag !!");
+    expect(r.list).toBe("vindskydd");
+    expect(r.priority).toBe(2);
+    expect(r.repeat).toEqual({ unit: "week", interval: 1, dow: 0 });
+    expect(r.title).toBe("Vattna");
   });
 });
 

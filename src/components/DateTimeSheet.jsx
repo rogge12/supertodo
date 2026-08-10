@@ -19,7 +19,7 @@ function monthGrid(year, month) {
 
 /* ---------- Urtavla ---------- */
 function ClockFace({ hour, minute }) {
-  const C = 100, R_OUT = 79, R_IN = 55;
+  const C = 100, R_OUT = 80, R_IN = 49;
   const pos = (angleDeg, r) => {
     const a = ((angleDeg - 90) * Math.PI) / 180;
     return [C + r * Math.cos(a), C + r * Math.sin(a)];
@@ -34,10 +34,10 @@ function ClockFace({ hour, minute }) {
     <svg className="clockface" viewBox="0 0 200 200" role="img" aria-label={`Klockan ${pad2(hour)}:${pad2(minute)}`}>
       <circle cx={C} cy={C} r="94" className="cf-bg" />
       {/* minutstreck */}
-      {Array.from({ length: 60 }, (_, i) => {
-        const [x1, y1] = pos(i * 6, 90);
-        const [x2, y2] = pos(i * 6, i % 5 === 0 ? 85 : 87.5);
-        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} className={i % 5 === 0 ? "cf-tick5" : "cf-tick"} />;
+      {Array.from({ length: 12 }, (_, i) => {
+        const [x1, y1] = pos(i * 30, 93);
+        const [x2, y2] = pos(i * 30, 88);
+        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} className="cf-tick5" />;
       })}
       {/* yttre ring 1–12 */}
       {Array.from({ length: 12 }, (_, i) => {
@@ -87,30 +87,11 @@ export default function DateTimeSheet({ initialDue, initialTime, onApply, onClos
   };
   const time = hasTime ? pad2(hour) + ":" + pad2(minute) : null;
 
-  const quick = [
-    ["Idag", today],
-    ["Imorgon", isoDate(addDays(new Date(), 1))],
-    ["Om en vecka", isoDate(addDays(new Date(), 7))],
-  ];
-
   return (
     <div className="overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="sheet">
         <h2>Välj datum &amp; tid</h2>
         <div className="plan-list">
-
-          {/* ---- Snabbval ---- */}
-          <div className="dt-quick">
-            {quick.map(([label, iso]) => (
-              <button
-                key={label}
-                className={"dt-qbtn" + (due === iso ? " on" : "")}
-                onClick={() => { setDue(iso); const d = new Date(iso + "T00:00:00"); setView({ y: d.getFullYear(), m: d.getMonth() }); }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
 
           {/* ---- Kalender ---- */}
           <div className="dt-cal">
@@ -143,7 +124,8 @@ export default function DateTimeSheet({ initialDue, initialTime, onApply, onClos
 
           {/* ---- Tid ---- */}
           <div className="dt-timehead">
-            <span className="dt-tlabel"><Clock size={15} /> Tid</span>
+            <span className="dt-tlabel"><Clock size={14} /> Tid</span>
+            {hasTime && <span className="dt-readout">{pad2(hour)}:{pad2(minute)}</span>}
             <button className={"dt-toggle" + (hasTime ? " on" : "")} onClick={() => setHasTime(!hasTime)}>
               {hasTime ? "Ta bort tid" : "Lägg till tid"}
             </button>
@@ -152,7 +134,6 @@ export default function DateTimeSheet({ initialDue, initialTime, onApply, onClos
           {hasTime && (
             <div className="dt-time">
               <ClockFace hour={hour} minute={minute} />
-              <div className="dt-readout">{pad2(hour)}:{pad2(minute)}</div>
               <label className="dt-slider">
                 <span>Timme</span>
                 <input type="range" min="0" max="23" step="1" value={hour}

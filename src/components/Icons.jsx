@@ -91,3 +91,21 @@ export const PartyCheck = ({ size = 30 }) => (
     <path d="M8 12.5l2.5 2.5L16 9.5" />
   </svg>
 );
+
+export const ListIcon = ({ size = 19 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...base} aria-hidden="true">
+    <path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" />
+  </svg>
+);
+
+export const ArrowLeft = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...base} strokeWidth={2.2} aria-hidden="true">
+    <path d="M19 12H5M11 18l-6-6 6-6" />
+  </svg>
+);
+
+export const Dots = ({ size = 19 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <circle cx="12" cy="5" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="19" r="1.8" />
+  </svg>
+);

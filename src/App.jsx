@@ -5,10 +5,13 @@ import Capture from "./components/Capture.jsx";
 import TaskItem from "./components/TaskItem.jsx";
 import PlanSheet from "./components/PlanSheet.jsx";
 import SettingsSheet from "./components/SettingsSheet.jsx";
-import { Gear, Sun, Inbox, CalendarBig, PartyCheck } from "./components/Icons.jsx";
+import HomeView from "./components/HomeView.jsx";
+import ListSheet from "./components/ListSheet.jsx";
+import { Gear, Sun, Inbox, CalendarBig, PartyCheck, ArrowLeft, Dots, ListIcon } from "./components/Icons.jsx";
 
 const STORE_KEY = "supertodo.tasks.v1";
 const META_KEY = "supertodo.meta.v1";
+const LISTS_KEY = "supertodo.lists.v1";
 
 function loadJson(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -17,7 +20,13 @@ function loadJson(key, fallback) {
 export default function App() {
   const [tasks, setTasks] = useState(() => loadJson(STORE_KEY, []));
   const [meta, setMeta] = useState(() => loadJson(META_KEY, {}));
-  const [view, setView] = useState("today");
+  const [lists, setLists] = useState(() => loadJson(LISTS_KEY, []));
+  // route: {kind:"home"} | {kind:"today"|"inbox"|"upcoming"} | {kind:"list", id}
+  const [route, setRoute] = useState(() => {
+    const m = loadJson(META_KEY, {});
+    return m.startView === "today" ? { kind: "today" } : { kind: "home" };
+  });
+  const [listSheet, setListSheet] = useState(null); // null | {mode:"new"} | {mode:"edit", id}
   const [editingId, setEditingId] = useState(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -28,6 +37,7 @@ export default function App() {
 
   useEffect(() => { localStorage.setItem(STORE_KEY, JSON.stringify(tasks)); }, [tasks]);
   useEffect(() => { localStorage.setItem(META_KEY, JSON.stringify(meta)); }, [meta]);
+  useEffect(() => { localStorage.setItem(LISTS_KEY, JSON.stringify(lists)); }, [lists]);
 
   const today = todayIso();
 
@@ -38,11 +48,29 @@ export default function App() {
   }, []);
 
   /* ---------- Uppgiftsoperationer ---------- */
+  // #namn i texten vinner; annars hamnar uppgiften i listan man står i
+  const resolveList = (name) => {
+    if (!name) return route.kind === "list" ? route.id : null;
+    const found = lists.find((l) => l.name.toLowerCase() === name.toLowerCase());
+    if (found) return found.id;
+    const created = { id: uid(), name, createdAt: Date.now() };
+    setLists((ls) => [...ls, created]);
+    return created.id;
+  };
+
   const addTask = (p) => {
-    setTasks((ts) => [...ts, { id: uid(), title: p.title, due: p.due, time: p.time, priority: p.priority, repeat: p.repeat, focusDate: null, done: false, doneAt: null, createdAt: Date.now() }]);
-    if (p.due && p.due <= today) setView("today");
-    else if (p.due) setView("upcoming");
-    else setView("inbox");
+    const listId = resolveList(p.list);
+    setTasks((ts) => [...ts, { id: uid(), title: p.title, due: p.due, time: p.time, priority: p.priority, repeat: p.repeat, listId, focusDate: null, done: false, doneAt: null, createdAt: Date.now() }]);
+    if (route.kind === "list") return; // stanna kvar i listan
+    if (route.kind === "home") {
+      // På startsidan stannar vi kvar — räknarna uppdateras, och en rad berättar var det hamnade
+      const l = listId ? lists.find((x) => x.id === listId) : null;
+      flashToast("Lagt till i " + (l ? l.name : p.due && p.due <= today ? "Idag" : p.due ? "Kommande" : "Inkorgen"));
+      return;
+    }
+    if (p.due && p.due <= today) setRoute({ kind: "today" });
+    else if (p.due) setRoute({ kind: "upcoming" });
+    else setRoute({ kind: "inbox" });
   };
 
   const toggleTask = (t) => {
@@ -84,8 +112,32 @@ export default function App() {
   };
 
   const saveEdit = (id, p) => {
-    setTasks((ts) => ts.map((x) => (x.id === id ? { ...x, title: p.title, due: p.due, time: p.time, priority: p.priority, repeat: p.repeat } : x)));
+    const listId = p.list ? resolveList(p.list) : undefined;
+    setTasks((ts) => ts.map((x) => (x.id === id
+      ? { ...x, title: p.title, due: p.due, time: p.time, priority: p.priority, repeat: p.repeat, ...(listId !== undefined ? { listId } : {}) }
+      : x)));
     setEditingId(null);
+  };
+
+  /* ---------- Listor ---------- */
+  const saveList = (name) => {
+    if (listSheet?.mode === "new") {
+      const created = { id: uid(), name, createdAt: Date.now() };
+      setLists((ls) => [...ls, created]);
+      setRoute({ kind: "list", id: created.id });
+    } else if (listSheet?.mode === "edit") {
+      setLists((ls) => ls.map((l) => (l.id === listSheet.id ? { ...l, name } : l)));
+    }
+    setListSheet(null);
+  };
+
+  const deleteList = (id) => {
+    const moved = tasks.filter((t) => t.listId === id).length;
+    setTasks((ts) => ts.map((t) => (t.listId === id ? { ...t, listId: null } : t)));
+    setLists((ls) => ls.filter((l) => l.id !== id));
+    setListSheet(null);
+    setRoute({ kind: "home" });
+    flashToast(moved ? "Listan borttagen — " + moved + " uppgifter flyttade till Inkorgen" : "Listan borttagen");
   };
 
   const setDue = (id, due) => setTasks((ts) => ts.map((x) => (x.id === id ? { ...x, due } : x)));
@@ -131,7 +183,7 @@ export default function App() {
     );
     setMeta((m) => ({ ...m, lastPlanned: today }));
     setPlanOpen(false);
-    setView("today");
+    setRoute({ kind: "today" });
   };
   const skipPlan = () => {
     setMeta((m) => ({ ...m, lastPlanned: today }));
@@ -196,17 +248,51 @@ export default function App() {
       if (e.key === "Escape") { setPlanOpen(false); setSettingsOpen(false); setEditingId(null); return; }
       if (inInput) return;
       if (e.key === "n" || e.key === "/") { e.preventDefault(); inputRef.current?.focus(); }
-      else if (e.key === "1") setView("today");
-      else if (e.key === "2") setView("inbox");
-      else if (e.key === "3") setView("upcoming");
+      else if (e.key === "0" || e.key === "h") setRoute({ kind: "home" });
+      else if (e.key === "1") setRoute({ kind: "today" });
+      else if (e.key === "2") setRoute({ kind: "inbox" });
+      else if (e.key === "3") setRoute({ kind: "upcoming" });
       else if (e.key === "p") setPlanOpen(true);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
+  /* ---------- Listvyn ---------- */
+  const currentList = route.kind === "list" ? lists.find((l) => l.id === route.id) : null;
+  const listTasks = useMemo(
+    () => (currentList ? open.filter((x) => x.listId === currentList.id) : []),
+    [open, currentList]
+  );
+  const listGroups = useMemo(() => {
+    const withDate = listTasks.filter((x) => x.due).sort((a, b) => (a.due < b.due ? -1 : a.due > b.due ? 1 : sortByScore(a, b)));
+    const without = listTasks.filter((x) => !x.due).sort(sortByScore);
+    const groups = [];
+    for (const t of withDate) {
+      const last = groups[groups.length - 1];
+      if (last && last.date === t.due) last.items.push(t);
+      else groups.push({ date: t.due, items: [t] });
+    }
+    return { groups, without };
+  }, [listTasks]);
+  const listDone = useMemo(
+    () => (currentList ? tasks.filter((x) => x.done && x.listId === currentList.id).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)) : []),
+    [tasks, currentList]
+  );
+  const listCounts = useMemo(() => {
+    const c = {};
+    for (const t of open) if (t.listId) c[t.listId] = (c[t.listId] || 0) + 1;
+    return c;
+  }, [open]);
+
   /* ---------- Render ---------- */
   const now = new Date();
+  const view = route.kind;
+  const title = view === "home" ? "Super-todo"
+    : view === "today" ? "Idag"
+    : view === "inbox" ? "Inkorg"
+    : view === "upcoming" ? "Kommande"
+    : currentList ? currentList.name : "Lista";
   const itemProps = {
     onToggle: toggleTask,
     onEdit: setEditingId,
@@ -236,29 +322,72 @@ export default function App() {
   return (
     <div className="app">
       <header>
-        <h1 id="view-title">{view === "today" ? "Idag" : view === "inbox" ? "Inkorg" : "Kommande"}</h1>
+        <div className="hleft">
+          {view !== "home" && (
+            <button className="gear back" id="back" aria-label="Tillbaka" onClick={() => { setEditingId(null); setRoute({ kind: "home" }); }}>
+              <ArrowLeft />
+            </button>
+          )}
+          <h1 id="view-title">{title}</h1>
+        </div>
         <div className="hright">
-          <span className="date">{DAY_NAMES[now.getDay()] + " " + now.getDate() + " " + MONTH_NAMES[now.getMonth()]}</span>
+          {view === "list"
+            ? <button className="gear" id="list-menu" aria-label="Listinställningar" onClick={() => setListSheet({ mode: "edit", id: route.id })}><Dots /></button>
+            : <span className="date">{DAY_NAMES[now.getDay()] + " " + now.getDate() + " " + MONTH_NAMES[now.getMonth()]}</span>}
           <button className="gear" id="gear" title="Inställningar" onClick={() => setSettingsOpen(true)}><Gear /></button>
         </div>
       </header>
 
       <Capture onAdd={addTask} inputRef={inputRef} />
 
+      {(view === "today" || view === "inbox" || view === "upcoming") && (
       <nav className="tabs">
         {[
           ["today", "Idag", todayAll.length],
           ["inbox", "Inkorg", inboxTasks.length],
           ["upcoming", "Kommande", upcoming.length],
         ].map(([v, label, n]) => (
-          <button key={v} className={"tab" + (view === v ? " active" : "")} data-view={v} onClick={() => { setEditingId(null); setView(v); }}>
+          <button key={v} className={"tab" + (view === v ? " active" : "")} data-view={v} onClick={() => { setEditingId(null); setRoute({ kind: v }); }}>
             {label}
             {n > 0 && <span className="count">{n}</span>}
           </button>
         ))}
       </nav>
+      )}
 
       <main id="list">
+        {view === "home" && (
+          <HomeView
+            counts={{ today: todayAll.length, inbox: inboxTasks.length, upcoming: upcoming.length }}
+            lists={lists}
+            listCounts={listCounts}
+            onOpen={(r) => { setEditingId(null); setRoute(r); }}
+            onNewList={() => setListSheet({ mode: "new" })}
+          />
+        )}
+
+        {view === "list" && currentList && (
+          listTasks.length === 0 && listDone.length === 0 ? (
+            <div className="empty"><span className="big"><ListIcon size={30} /></span>Listan är tom.<br />Skriv något där uppe så hamnar det här.</div>
+          ) : (
+            <>
+              {listGroups.without.length > 0 && renderItems(listGroups.without)}
+              {listGroups.groups.map((g) => (
+                <div key={g.date}>
+                  <div className="group-label">{fmtDateLong(g.date)}</div>
+                  {renderItems(g.items, { hideDate: true })}
+                </div>
+              ))}
+              {listDone.length > 0 && (
+                <details className="done-section">
+                  <summary>Avklarat ({listDone.length})</summary>
+                  {renderItems(listDone)}
+                </details>
+              )}
+            </>
+          )
+        )}
+
         {view === "today" && (
           <>
             {meta.lastPlanned !== today && planCandidates.length > 0 && (
@@ -336,8 +465,21 @@ export default function App() {
       {planOpen && planCandidates.length > 0 && (
         <PlanSheet candidates={planCandidates} onDone={finishPlan} onSkip={skipPlan} onClose={() => setPlanOpen(false)} />
       )}
+      {listSheet && (() => {
+        const l = listSheet.mode === "edit" ? lists.find((x) => x.id === listSheet.id) : null;
+        return (
+          <ListSheet
+            initialName={l ? l.name : ""}
+            taskCount={l ? tasks.filter((t) => t.listId === l.id).length : 0}
+            onSave={saveList}
+            onDelete={l ? () => deleteList(l.id) : undefined}
+            onClose={() => setListSheet(null)}
+          />
+        );
+      })()}
+
       {settingsOpen && (
-        <SettingsSheet tasks={tasks} meta={meta} onImport={importTasks} onClose={() => setSettingsOpen(false)} onToast={flashToast} />
+        <SettingsSheet tasks={tasks} meta={meta} setMeta={setMeta} onImport={importTasks} onClose={() => setSettingsOpen(false)} onToast={flashToast} />
       )}
 
       {toast && (

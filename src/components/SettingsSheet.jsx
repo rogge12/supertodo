@@ -7,7 +7,7 @@ function notifStatus() {
   return Notification.permission; // "default" | "granted" | "denied"
 }
 
-export default function SettingsSheet({ tasks, meta, onImport, onClose, onToast }) {
+export default function SettingsSheet({ tasks, meta, setMeta, onImport, onClose, onToast }) {
   const fileRef = useRef(null);
   const [status, setStatus] = useState(notifStatus());
 
@@ -59,6 +59,16 @@ export default function SettingsSheet({ tasks, meta, onImport, onClose, onToast 
               Aktivera
             </button>
           )}
+        </div>
+        <div className="set-row">
+          <div className="lbl">
+            <b>Öppna appen på</b>
+            <span>Startsidan visar alla listor. Idag går direkt till dagens uppgifter.</span>
+          </div>
+          <div className="seg">
+            <button className={meta.startView !== "today" ? "on" : ""} onClick={() => setMeta((m) => ({ ...m, startView: "home" }))}>Startsida</button>
+            <button className={meta.startView === "today" ? "on" : ""} onClick={() => setMeta((m) => ({ ...m, startView: "today" }))}>Idag</button>
+          </div>
         </div>
         <div className="set-row">
           <div className="lbl">

@@ -1,7 +1,8 @@
 /* ============================================================
-   Svensk språktolkning: text → { title, due, time, priority, repeat }
+   Svensk språktolkning: text → { title, due, time, priority, repeat, list }
    due = "YYYY-MM-DD" | null, time = "HH:MM" | null, priority = 0|1|2
    repeat = null | { unit: "day"|"week"|"month", interval: 1|2, dow?, day? }
+   list = listnamn som skrivits med #, t.ex. "#vindskydd" → "vindskydd"
    ============================================================ */
 export const WEEKDAYS = [
   { names: ["måndagar", "måndag", "månd", "mån"], dow: 1 },
@@ -53,7 +54,11 @@ function grabBareHour(s, matchIndex, matchLen) {
 export function parseTask(text, now) {
   now = now || new Date();
   let s = " " + text.trim() + " ";
-  let due = null, time = null, priority = 0, repeat = null;
+  let due = null, time = null, priority = 0, repeat = null, list = null;
+
+  // --- Lista: #vindskydd ---
+  let lm = s.match(/(^|\s)#([^\s#]+)/);
+  if (lm) { list = lm[2]; s = s.replace(lm[0], lm[1]); }
 
   // --- Prioritet ---
   if (/!!\s|!viktigt/i.test(s)) { priority = 2; s = s.replace(/\s*(!viktigt|!!)/gi, " "); }
@@ -208,7 +213,7 @@ export function parseTask(text, now) {
   let title = s.replace(/\s+/g, " ").trim().replace(/[,;]\s*$/, "").trim();
   if (title) title = title.charAt(0).toUpperCase() + title.slice(1);
 
-  return { title, due, time, priority, repeat };
+  return { title, due, time, priority, repeat, list };
 }
 
 /* Nästa förekomst av en återkommande uppgift, alltid efter "idag" */
