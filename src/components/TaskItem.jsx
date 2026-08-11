@@ -5,13 +5,14 @@ import { Chevron, Trash, Calendar, Clock, Repeat, Flag, Steps } from "./Icons.js
 import DateTimeSheet from "./DateTimeSheet.jsx";
 import { composeText, initialFromText } from "../lib/compose.js";
 import StepEditor from "./StepEditor.jsx";
+import { HitWhere } from "./SearchView.jsx";
 import { stepProgress, addStep } from "../lib/steps.js";
 
 const OPEN_AT = -92;   // hur långt raden vilar när "Ta bort" är framme
 const TRIGGER = -46;   // hur långt man måste svepa för att den ska fastna
 const MAX = -112;
 
-export default function TaskItem({ task, focus, hideDate, nudge, editing, onToggle, onEdit, onSaveEdit, onCancelEdit, onRemove, onSetDue, onToggleStep }) {
+export default function TaskItem({ task, focus, hideDate, nudge, editing, hitInfo, onToggle, onEdit, onSaveEdit, onCancelEdit, onRemove, onSetDue, onToggleStep }) {
   const inputRef = useRef(null);
   const [val, setVal] = useState("");
   const [offset, setOffsetState] = useState(0);
@@ -195,6 +196,7 @@ export default function TaskItem({ task, focus, hideDate, nudge, editing, onTogg
               {task.priority === 2 && !task.done && <span className="imp"><Flag /> Viktigt</span>}
             </div>
           )}
+          {hitInfo && <HitWhere {...hitInfo(task)} />}
           {openSteps && prog.total > 0 && (
             <ul className="steps-list" onClick={(e) => e.stopPropagation()}>
               {(task.steps || []).map((s) => (

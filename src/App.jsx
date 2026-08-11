@@ -9,7 +9,8 @@ import PlanSheet from "./components/PlanSheet.jsx";
 import SettingsSheet from "./components/SettingsSheet.jsx";
 import HomeView from "./components/HomeView.jsx";
 import ListSheet from "./components/ListSheet.jsx";
-import { Gear, Sun, Inbox, CalendarBig, PartyCheck, ArrowLeft, Dots, ListIcon } from "./components/Icons.jsx";
+import SearchView from "./components/SearchView.jsx";
+import { Gear, Sun, Inbox, CalendarBig, PartyCheck, ArrowLeft, Dots, ListIcon, Search } from "./components/Icons.jsx";
 
 const STORE_KEY = "supertodo.tasks.v1";
 const META_KEY = "supertodo.meta.v1";
@@ -253,7 +254,12 @@ export default function App() {
     const onKey = (e) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const inInput = e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA";
-      if (e.key === "Escape") { setPlanOpen(false); setSettingsOpen(false); setEditingId(null); return; }
+      if (e.key === "Escape") {
+        setPlanOpen(false); setSettingsOpen(false); setEditingId(null);
+        // funktionell form: effekten har inga beroenden och skulle annars läsa en gammal route
+        setRoute((r) => (r.kind === "search" ? { kind: "home" } : r));
+        return;
+      }
       if (inInput) return;
       if (e.key === "n" || e.key === "/") { e.preventDefault(); inputRef.current?.focus(); }
       else if (e.key === "0" || e.key === "h") setRoute({ kind: "home" });
@@ -261,6 +267,7 @@ export default function App() {
       else if (e.key === "2") setRoute({ kind: "inbox" });
       else if (e.key === "3") setRoute({ kind: "upcoming" });
       else if (e.key === "p") setPlanOpen(true);
+      else if (e.key === "f") { e.preventDefault(); setEditingId(null); setRoute({ kind: "search" }); }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -300,6 +307,7 @@ export default function App() {
     : view === "today" ? "Idag"
     : view === "inbox" ? "Inkorg"
     : view === "upcoming" ? "Kommande"
+    : view === "search" ? "Sök"
     : currentList ? currentList.name : "Lista";
   const itemProps = {
     onToggle: toggleTask,
@@ -342,12 +350,16 @@ export default function App() {
         <div className="hright">
           {view === "list"
             ? <button className="gear" id="list-menu" aria-label="Listinställningar" onClick={() => setListSheet({ mode: "edit", id: route.id })}><Dots /></button>
-            : <span className="date">{DAY_NAMES[now.getDay()] + " " + now.getDate() + " " + MONTH_NAMES[now.getMonth()]}</span>}
+            : view !== "search" && <span className="date">{DAY_NAMES[now.getDay()] + " " + now.getDate() + " " + MONTH_NAMES[now.getMonth()]}</span>}
+          {view !== "search" && (
+            <button className="gear" id="search-btn" title="Sök" aria-label="Sök" onClick={() => { setEditingId(null); setRoute({ kind: "search" }); }}><Search /></button>
+          )}
           <button className="gear" id="gear" title="Inställningar" onClick={() => setSettingsOpen(true)}><Gear /></button>
         </div>
       </header>
 
-      <Capture onAdd={addTask} inputRef={inputRef} />
+      {/* Sökvyn har ett eget fält — man är inte inne för att lägga till något */}
+      {view !== "search" && <Capture onAdd={addTask} inputRef={inputRef} />}
 
       {(view === "today" || view === "inbox" || view === "upcoming") && (
       <nav className="tabs">
@@ -372,6 +384,15 @@ export default function App() {
             listCounts={listCounts}
             onOpen={(r) => { setEditingId(null); setRoute(r); }}
             onNewList={() => setListSheet({ mode: "new" })}
+          />
+        )}
+
+        {view === "search" && (
+          <SearchView
+            tasks={tasks}
+            lists={lists}
+            renderItems={renderItems}
+            onOpenList={(id) => { setEditingId(null); setRoute({ kind: "list", id }); }}
           />
         )}
 
@@ -468,7 +489,7 @@ export default function App() {
       </main>
 
       <div className="hint">
-        Kortkommandon: <b>n</b> ny uppgift · <b>1</b> <b>2</b> <b>3</b> byt vy · <b>p</b> planera dagen
+        Kortkommandon: <b>n</b> ny uppgift · <b>f</b> sök · <b>1</b> <b>2</b> <b>3</b> byt vy · <b>p</b> planera dagen
       </div>
 
       {planOpen && planCandidates.length > 0 && (
