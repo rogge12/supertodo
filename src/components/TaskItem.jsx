@@ -1,20 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 import { parseTask, addDays, isoDate } from "../lib/parser.js";
 import { fmtDate, fmtRepeat, ageDaysOf, todayIso } from "../lib/format.js";
-import { Chevron, Trash, Calendar, Clock, Repeat, Flag } from "./Icons.jsx";
+import { Chevron, Trash, Calendar, Clock, Repeat, Flag, Steps } from "./Icons.jsx";
 import DateTimeSheet from "./DateTimeSheet.jsx";
 import { composeText, initialFromText } from "../lib/compose.js";
+import StepEditor from "./StepEditor.jsx";
+import { stepProgress, addStep } from "../lib/steps.js";
 
 const OPEN_AT = -92;   // hur långt raden vilar när "Ta bort" är framme
 const TRIGGER = -46;   // hur långt man måste svepa för att den ska fastna
 const MAX = -112;
 
-export default function TaskItem({ task, focus, hideDate, nudge, editing, onToggle, onEdit, onSaveEdit, onCancelEdit, onRemove, onSetDue }) {
+export default function TaskItem({ task, focus, hideDate, nudge, editing, onToggle, onEdit, onSaveEdit, onCancelEdit, onRemove, onSetDue, onToggleStep }) {
   const inputRef = useRef(null);
   const [val, setVal] = useState("");
   const [offset, setOffsetState] = useState(0);
   const [swiping, setSwiping] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [openSteps, setOpenSteps] = useState(false); // utfällt i listan — vytillstånd, sparas inte
+  const [steps, setStepsState] = useState([]);
+  // Ett delsteg som skrivits men inte bekräftats sparas när fältet tappar fokus.
+  // Trycker man direkt på Spara hinner den uppdateringen inte fram till klick-
+  // hanteraren, så positionen speglas i en ref precis som svepets offset.
+  const stepsRef = useRef([]);
+  const setSteps = (v) => { stepsRef.current = v; setStepsState(v); };
+  const pendingStep = useRef(null); // delsteg som skrivits men inte bekräftats med Enter
   const drag = useRef({ x: 0, y: 0, base: 0, axis: null, moved: false });
   // Positionen speglas i en ref: flera touchmove kan hinna före en omritning,
   // och då är state-värdet i touchend-stängningen inaktuellt.
@@ -29,6 +39,8 @@ export default function TaskItem({ task, focus, hideDate, nudge, editing, onTogg
         (task.time ? " " + task.time : "") +
         (task.priority === 2 ? " !!" : task.priority === 1 ? " !" : "");
       setVal(v);
+      setSteps(task.steps || []);
+      pendingStep.current = null;
       setOffset(0);
       setTimeout(() => {
         inputRef.current?.focus();
@@ -39,7 +51,9 @@ export default function TaskItem({ task, focus, hideDate, nudge, editing, onTogg
 
   const saveEdit = () => {
     const p = parseTask(val);
-    if (p.title) onSaveEdit(task.id, p);
+    // Ett halvskrivet delsteg ska inte gå förlorat för att man tryckte Spara
+    const steps = addStep(stepsRef.current, pendingStep.current);
+    if (p.title) onSaveEdit(task.id, p, steps);
     else onCancelEdit();
   };
 
@@ -103,6 +117,7 @@ export default function TaskItem({ task, focus, hideDate, nudge, editing, onTogg
               {p.priority === 1 && <span className="chip prio1"><Flag /> Prioriterad</span>}
             </div>
           )}
+          <StepEditor steps={steps} onChange={setSteps} pendingRef={pendingStep} />
           <div className="edit-actions">
             <button type="button" className="edit-delete" onClick={() => onRemove(task.id)}>Ta bort</button>
             <button type="button" className="edit-cal" title="Välj datum och tid" aria-label="Välj datum och tid"
@@ -132,10 +147,11 @@ export default function TaskItem({ task, focus, hideDate, nudge, editing, onTogg
   const days = ageDaysOf(task);
   // Ett "idag" på varje rad i Idag-vyn säger inget — visa datumet bara när det tillför något
   const showDate = task.due && !hideDate && (overdue || task.due !== todayIso());
-  const hasMeta = showDate || task.time || task.repeat || (task.priority === 2 && !task.done);
+  const prog = stepProgress(task);
+  const hasMeta = showDate || task.time || task.repeat || prog.total > 0 || (task.priority === 2 && !task.done);
 
   return (
-    <li className={"task" + (task.done ? " done" : "") + (focus ? " focus" : "") + (swiping ? " swiping" : "")}>
+    <li className={"task" + (task.done ? " done" : "") + (focus ? " focus" : "") + (swiping ? " swiping" : "") + (openSteps && prog.total > 0 ? " steps-open" : "")}>
       <div className="task-open" aria-hidden={offset === 0}>
         <button type="button" tabIndex={offset === 0 ? -1 : 0} onClick={() => onRemove(task.id)}>
           <Trash />
@@ -166,8 +182,33 @@ export default function TaskItem({ task, focus, hideDate, nudge, editing, onTogg
               )}
               {task.time && <span><Clock /> {task.time}</span>}
               {task.repeat && <span><Repeat /> {fmtRepeat(task.repeat)}</span>}
+              {prog.total > 0 && (
+                <button
+                  type="button"
+                  className={"step-count" + (openSteps ? " open" : "")}
+                  aria-expanded={openSteps}
+                  onClick={(e) => { e.stopPropagation(); setOpenSteps((o) => !o); }}
+                >
+                  <Steps /> {prog.done} av {prog.total}
+                </button>
+              )}
               {task.priority === 2 && !task.done && <span className="imp"><Flag /> Viktigt</span>}
             </div>
+          )}
+          {openSteps && prog.total > 0 && (
+            <ul className="steps-list" onClick={(e) => e.stopPropagation()}>
+              {(task.steps || []).map((s) => (
+                <li key={s.id} className={s.done ? "done" : ""}>
+                  <button
+                    type="button"
+                    className={"step-check" + (s.done ? " on" : "")}
+                    aria-label={s.done ? "Markera som ej klar" : "Klar"}
+                    onClick={() => onToggleStep(task.id, s.id)}
+                  />
+                  <span>{s.title}</span>
+                </li>
+              ))}
+            </ul>
           )}
           {nudge && !task.done && (
             <div className="nudge" onClick={(e) => e.stopPropagation()}>

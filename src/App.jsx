@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { nextOccurrence, isoDate, pad2 } from "./lib/parser.js";
 import { DAY_NAMES, MONTH_NAMES, todayIso, fmtDateLong, sortByScore, ageDaysOf, uid } from "./lib/format.js";
 import { mergeBackup, importSummary } from "./lib/backup.js";
+import { resetSteps, toggleStep as toggleStepIn } from "./lib/steps.js";
 import Capture from "./components/Capture.jsx";
 import TaskItem from "./components/TaskItem.jsx";
 import PlanSheet from "./components/PlanSheet.jsx";
@@ -77,8 +78,10 @@ export default function App() {
   const toggleTask = (t) => {
     setTasks((ts) => {
       if (!t.done && t.repeat) {
+        // Kopian minns vad som faktiskt gjordes den här gången; originalet
+        // rullar fram med färska delsteg inför nästa varv
         const copy = { ...t, id: uid(), done: true, doneAt: Date.now(), repeat: null, repeatOf: t.id, focusDate: null };
-        return ts.map((x) => (x.id === t.id ? { ...x, due: nextOccurrence(x.due || today, x.repeat, today), focusDate: null } : x)).concat(copy);
+        return ts.map((x) => (x.id === t.id ? { ...x, due: nextOccurrence(x.due || today, x.repeat, today), focusDate: null, steps: resetSteps(x.steps) } : x)).concat(copy);
       }
       if (t.done && t.repeatOf) {
         const orig = ts.find((x) => x.id === t.repeatOf);
@@ -112,13 +115,18 @@ export default function App() {
     setToast(null);
   };
 
-  const saveEdit = (id, p) => {
+  // Titel och delsteg sparas i ett svep — Avbryt slänger båda
+  const saveEdit = (id, p, steps) => {
     const listId = p.list ? resolveList(p.list) : undefined;
     setTasks((ts) => ts.map((x) => (x.id === id
-      ? { ...x, title: p.title, due: p.due, time: p.time, priority: p.priority, repeat: p.repeat, ...(listId !== undefined ? { listId } : {}) }
+      ? { ...x, title: p.title, due: p.due, time: p.time, priority: p.priority, repeat: p.repeat, steps, ...(listId !== undefined ? { listId } : {}) }
       : x)));
     setEditingId(null);
   };
+
+  // Direktoperation: att bocka av ett delsteg i listan sparar med en gång
+  const toggleStep = (taskId, stepId) =>
+    setTasks((ts) => ts.map((x) => (x.id === taskId ? { ...x, steps: toggleStepIn(x.steps, stepId) } : x)));
 
   /* ---------- Listor ---------- */
   const saveList = (name) => {
@@ -300,6 +308,7 @@ export default function App() {
     onCancelEdit: () => setEditingId(null),
     onRemove: removeTask,
     onSetDue: setDue,
+    onToggleStep: toggleStep,
   };
   const renderItems = (items, extra = {}) => (
     <ul className="tasks">

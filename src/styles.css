@@ -185,6 +185,66 @@ li.task.swiping .task-slide { transition: none; }
 .task-chev { flex: none; color: var(--border); display: flex; }
 @media (prefers-color-scheme: dark) { .task-chev { color: #3a4150; } }
 
+/* ---------- Delsteg ---------- */
+/* Räknaren på raden: en knapp som ser ut som resten av metadatan */
+.step-count {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: none; background: none; padding: 0; cursor: pointer;
+  font: inherit; font-size: 12.5px; color: var(--text-dim);
+}
+.step-count:hover, .step-count.open { color: var(--accent); }
+
+/* Utfälld rad: kryssrutan och pilen hör ihop med titeln, inte med
+   radens mitt — annars glider de ner bredvid delstegen */
+.task.steps-open .task-slide { align-items: flex-start; }
+.task.steps-open .check { margin-top: 1px; }
+.task.steps-open .task-chev { margin-top: 3px; }
+
+.steps-list { list-style: none; margin: 8px 0 2px; padding: 0; display: grid; gap: 7px; }
+.steps-list li { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--text-soft); }
+.steps-list li.done span { color: var(--text-dim); text-decoration: line-through; }
+
+/* Mindre syskon till .check — samma form, lägre tyngd */
+.step-check {
+  flex: none; width: 16px; height: 16px; padding: 0; position: relative;
+  border: 1.6px solid var(--text-dim); border-radius: 5px;
+  background: transparent; cursor: pointer;
+}
+.step-check::before { content: ""; position: absolute; inset: -10px -8px; }
+.step-check.on { background: var(--accent); border-color: var(--accent); }
+.step-check.on::after {
+  content: ""; position: absolute; left: 4.5px; top: 1.5px; width: 4px; height: 8px;
+  border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(43deg);
+}
+.step-check.ghost { border-style: dashed; cursor: default; }
+
+/* Delstegen i redigeringsläget */
+.steps-edit { margin-top: 12px; }
+.steps-label {
+  font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--text-dim); margin-bottom: 7px;
+}
+.step-row { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; }
+.step-input {
+  flex: 1; min-width: 0; font: inherit; font-size: 14.5px; color: var(--text);
+  background: transparent; border: none; border-bottom: 1px solid var(--border);
+  padding: 6px 2px; outline: none;
+}
+.step-input:focus { border-bottom-color: var(--accent); }
+.step-input.done { color: var(--text-dim); text-decoration: line-through; }
+.step-del {
+  flex: none; border: none; background: none; color: var(--text-dim);
+  padding: 4px; cursor: pointer; display: flex; border-radius: 6px;
+}
+.step-del:hover, .step-del:active { color: var(--danger); }
+.step-del svg { width: 15px; height: 15px; }
+.step-add {
+  border: none; background: none; font: inherit; font-size: 13.5px; font-weight: 600;
+  color: var(--accent); padding: 7px 2px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.step-add:active { opacity: .6; }
+
 /* Knuff för gamla uppgifter */
 .nudge { margin-top: 9px; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 .nudge .q { font-size: 12.5px; color: var(--warn); font-weight: 600; width: 100%; }
@@ -355,6 +415,16 @@ details.done-section[open] summary::before { content: "▾ "; }
   .help-table td { padding: 11px 4px; font-size: 14px; }
   .chip-help { padding: 8px 13px; font-size: 13px; }
   .replan button { padding: 9px 8px; font-size: 13.5px; }
+  .step-check { width: 20px; height: 20px; }
+  .step-check::before { inset: -12px -10px; }
+  .step-check.on::after { left: 6px; top: 2.5px; }
+  .steps-list { gap: 11px; }
+  .steps-list li { font-size: 14.5px; }
+  .step-row { margin-bottom: 9px; }
+  .step-input { font-size: 16px; padding: 8px 2px; }
+  .step-add { padding: 10px 2px; font-size: 14.5px; }
+  .step-del { padding: 8px; }
+  .step-count { padding: 3px 0; }
 }
 
 /* ============================================================

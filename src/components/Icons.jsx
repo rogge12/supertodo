@@ -22,6 +22,12 @@ export const Chevron = ({ size = 17 }) => (
   </svg>
 );
 
+export const Steps = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...base} strokeWidth={2.2} aria-hidden="true">
+    <path d="M4 7l2.5 2.5L11 5M4 17l2.5 2.5L11 15M14 7h6M14 17h6" />
+  </svg>
+);
+
 export const Trash = ({ size = 19 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" {...base} aria-hidden="true">
     <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />

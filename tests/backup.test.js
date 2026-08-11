@@ -91,6 +91,19 @@ describe("mergeBackup — uppgifter", () => {
   });
 });
 
+describe("mergeBackup — delsteg", () => {
+  const withSteps = task("t1", { steps: [{ id: "s1", title: "Köp virke", done: true }] });
+
+  it("tar med delstegen i backupen", () => {
+    expect(buildBackup([withSteps], [], {}).tasks[0].steps).toHaveLength(1);
+  });
+
+  it("behåller delstegen och deras bockar genom en import", () => {
+    const r = mergeBackup({ tasks: [withSteps] }, [], []);
+    expect(r.tasks[0].steps).toEqual([{ id: "s1", title: "Köp virke", done: true }]);
+  });
+});
+
 describe("mergeBackup — gamla filformat", () => {
   it("läser en backup utan listor (version 4)", () => {
     const r = mergeBackup({ app: "supertodo", version: 4, tasks: [task("t1", { listId: "borta" })] }, [], []);
