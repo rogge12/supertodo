@@ -1,19 +1,20 @@
 import { Gear } from "./Icons.jsx";
 import { useRef, useState } from "react";
 import { todayIso } from "../lib/format.js";
+import { buildBackup } from "../lib/backup.js";
 
 function notifStatus() {
   if (typeof Notification === "undefined") return "unsupported";
   return Notification.permission; // "default" | "granted" | "denied"
 }
 
-export default function SettingsSheet({ tasks, meta, setMeta, onImport, onClose, onToast }) {
+export default function SettingsSheet({ tasks, lists, meta, setMeta, onImport, onClose, onToast }) {
   const fileRef = useRef(null);
   const [status, setStatus] = useState(notifStatus());
 
   const exportData = () => {
     const blob = new Blob(
-      [JSON.stringify({ app: "supertodo", version: 4, exportedAt: new Date().toISOString(), tasks, meta }, null, 2)],
+      [JSON.stringify(buildBackup(tasks, lists, meta), null, 2)],
       { type: "application/json" }
     );
     const a = document.createElement("a");
@@ -29,10 +30,7 @@ export default function SettingsSheet({ tasks, meta, setMeta, onImport, onClose,
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const data = JSON.parse(reader.result);
-        const list = Array.isArray(data) ? data : data.tasks;
-        if (!Array.isArray(list)) throw new Error("fel format");
-        onImport(list);
+        onImport(JSON.parse(reader.result));
       } catch {
         onToast("Kunde inte läsa filen — är det en Super-todo-backup?");
       }
@@ -73,7 +71,7 @@ export default function SettingsSheet({ tasks, meta, setMeta, onImport, onClose,
         <div className="set-row">
           <div className="lbl">
             <b>Exportera</b>
-            <span>Ladda ner alla uppgifter som en backupfil.</span>
+            <span>Ladda ner alla uppgifter och listor som en backupfil.</span>
           </div>
           <button id="export-btn" onClick={exportData}>Ladda ner</button>
         </div>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { nextOccurrence, isoDate, pad2 } from "./lib/parser.js";
 import { DAY_NAMES, MONTH_NAMES, todayIso, fmtDateLong, sortByScore, ageDaysOf, uid } from "./lib/format.js";
+import { mergeBackup, importSummary } from "./lib/backup.js";
 import Capture from "./components/Capture.jsx";
 import TaskItem from "./components/TaskItem.jsx";
 import PlanSheet from "./components/PlanSheet.jsx";
@@ -142,13 +143,12 @@ export default function App() {
 
   const setDue = (id, due) => setTasks((ts) => ts.map((x) => (x.id === id ? { ...x, due } : x)));
 
-  const importTasks = (list) => {
-    setTasks((ts) => {
-      const have = new Set(ts.map((x) => x.id));
-      const fresh = list.filter((t) => t && t.id && t.title && !have.has(t.id));
-      flashToast(fresh.length ? fresh.length + " uppgifter importerade" : "Inget nytt att importera — allt fanns redan");
-      return [...ts, ...fresh];
-    });
+  // Kastar vidare på trasig fil — SettingsSheet fångar och säger till
+  const importData = (data) => {
+    const r = mergeBackup(data, tasks, lists);
+    setTasks(r.tasks);
+    setLists(r.lists);
+    flashToast(importSummary(r));
     setSettingsOpen(false);
   };
 
@@ -479,7 +479,7 @@ export default function App() {
       })()}
 
       {settingsOpen && (
-        <SettingsSheet tasks={tasks} meta={meta} setMeta={setMeta} onImport={importTasks} onClose={() => setSettingsOpen(false)} onToast={flashToast} />
+        <SettingsSheet tasks={tasks} lists={lists} meta={meta} setMeta={setMeta} onImport={importData} onClose={() => setSettingsOpen(false)} onToast={flashToast} />
       )}
 
       {toast && (
